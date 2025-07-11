@@ -1,0 +1,204 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Function to check if the user is an admin
+    function isAdmin() {
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Function to check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Contact Messages Collection
+    match /contactMessages/{messageId} {
+      // Allow anyone to create contact messages
+      allow create: if true;
+      // Only admins can read and delete contact messages
+      allow read, delete: if isAdmin();
+      // No updates allowed
+      allow update: if false;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      // Allow creation of user documents
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow users to read and update their own documents, and admins to do the same
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow update: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      
+      // Only admins can delete user documents
+      allow delete: if isAdmin();
+    }
+
+    // Enrollment Collection
+    match /enrollment/{docId} {
+      // Allow authenticated users to read and update (for the counter)
+      allow read, write: if request.auth != null;
+    }
+
+    // Notes Collection
+    match /notes/{noteId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Blogs Collection
+    match /blogs/{blogId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }    match /planner_goals/{goalId} {
+      allow read: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+    }
+
+    // Planner Progress
+    match /planner_progress/{progressId} {
+      allow read: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+      allow write: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid;
+    }
+
+    // Quizzes Collection
+    match /quizzes/{quizId} {
+      // Admins have full CRUD access
+      allow create, update, delete: if isAdmin();
+      
+      // Read access rules for quizzes:
+      // - Admins can always read.
+      // - Authenticated users can read if quiz is for 'all' or 'authenticated'.
+      // - Non-authenticated users can read if quiz is for 'all' or 'non-authenticated'.
+       allow read: if true; 
+    }    // PaymentRequests Collection
+    match /paymentRequests/{requestId} {
+      // Allow authenticated users to create their own payment requests
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      // Allow admins to read, update (status), and delete payment requests
+      allow read, update, delete: if isAdmin();
+      // Allow users to read their own payment requests
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid; 
+    }
+
+    // QuizResults Collection
+    // Need to be able to list quizzes for the BookmarkedQuestions component
+    match /quizResults/{quizId} {
+      allow list: if isAuthenticated();
+    }
+    
+    // Path: quizResults/{quizId}/{userId}/{attemptId}
+    match /quizResults/{quizId}/{userId}/{attemptId} {
+      // Allow authenticated users to create their own quiz results.
+      // The userId in the path must match the authenticated user's UID.
+      allow create: if isAuthenticated() && request.auth.uid == userId &&
+                       request.resource.data.userId == request.auth.uid && // Ensure userId in data matches
+                       request.resource.data.quizId == quizId; // Ensure quizId in data matches path
+
+      // Allow authenticated users to read their own quiz results.
+      // Admins can read any quiz result.
+      allow read: if (isAuthenticated() && request.auth.uid == userId) || isAdmin();
+
+      // Allow users to update their own quiz results, but only for bookmarking questions
+      allow update: if isAuthenticated() && request.auth.uid == userId &&
+                      // Ensure only userAnswers field is being updated (for bookmarking)
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userAnswers']) &&
+                      // Ensure other fields remain unchanged
+                      request.resource.data.quizId == resource.data.quizId &&
+                      request.resource.data.userId == resource.data.userId &&
+                      request.resource.data.score == resource.data.score &&
+                      request.resource.data.totalQuestions == resource.data.totalQuestions &&
+                      request.resource.data.percentage == resource.data.percentage &&
+                      request.resource.data.timeSpent == resource.data.timeSpent &&
+                      request.resource.data.completedAt == resource.data.completedAt;
+      
+      allow delete: if false; // Keep deletion restricted
+    }
+
+    // Community Posts
+    match /communityPosts/{postId} {
+      allow read: if true; // Allow public read
+
+      allow create: if request.auth != null &&
+        request.resource.data.author.uid == request.auth.uid &&
+        request.resource.data.createdAt == request.time && 
+        request.resource.data.updatedAt == request.time;
+
+      allow update: if
+        // Path 1: Author updates their own post (content, title, category)
+        (
+          request.auth != null &&
+          resource.data.author.uid == request.auth.uid &&
+          request.resource.data.author.uid == resource.data.author.uid && 
+          request.resource.data.author.role == resource.data.author.role && 
+          request.resource.data.createdAt == resource.data.createdAt && 
+          request.resource.data.updatedAt == request.time && 
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'content', 'category', 'updatedAt'])
+        ) ||
+        // Path 2: Admin updates specific fields (isPinned, isHidden)
+        (
+          isAdmin() &&
+          request.resource.data.updatedAt == request.time && 
+          // Admin can only change isPinned, isHidden, and updatedAt.
+          // Or if they are changing other fields, they must also be the author (covered by Path 1 if combined with admin role)
+          (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned', 'updatedAt']) ||
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isHidden', 'updatedAt']) ||
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned', 'isHidden', 'updatedAt'])
+          ) &&
+          // Ensure other critical fields are not changed by admin unless they are also the author
+          request.resource.data.author.uid == resource.data.author.uid &&
+          request.resource.data.author.role == resource.data.author.role &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.comments == resource.data.comments
+        ) ||
+        // Path 3: System update for comment count (triggered by creating/deleting a comment by an authenticated user)
+        (
+          request.auth != null && 
+          request.resource.data.diff(resource.data).affectedKeys().hasAll(['comments', 'updatedAt']) &&
+          request.resource.data.diff(resource.data).affectedKeys().size() == 2 &&
+          (request.resource.data.comments == resource.data.comments + 1 || request.resource.data.comments == resource.data.comments - 1) &&
+          request.resource.data.updatedAt == request.time
+        );
+
+      allow delete: if request.auth != null && (
+        (resource.data.author.uid == request.auth.uid) || 
+        isAdmin()      );
+
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if true; // Allow public read of comments
+
+        allow create: if request.auth != null &&
+                      request.resource.data.author.uid == request.auth.uid; // Any authenticated user can comment
+
+        allow update: if request.auth != null &&
+                      resource.data.author.uid == request.auth.uid &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'updatedAt']) &&
+                      request.resource.data.updatedAt == request.time;
+
+        allow delete: if request.auth != null && (
+          (resource.data.author.uid == request.auth.uid) ||
+          isAdmin()
+        );      }
+    }    
+    
+    // User Notifications
+    match /userNotifications/{userId}/notifications/{notificationId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null; 
+      allow delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    }    
+  }
+}

@@ -1,0 +1,29 @@
+# API routes
+/api/upload             /upload.php             200
+/api/uploadpay          /uploadpay.php          200  
+/api/delete             /delete.php             200
+
+# Static assets and uploads
+/uploads/*              /uploads/:splat         200
+/questionImages/*       /questionImages/:splat  200
+
+# Admin routes
+/admin                  /index.html             200
+/admin/*                /index.html             200
+
+# Student routes  
+/student                /index.html             200
+/student/*              /index.html             200
+
+# Public routes
+/notes                  /index.html             200
+/notes/*                /index.html             200
+/blogs                  /index.html             200
+/blogs/*                /index.html             200
+/community              /index.html             200
+/ioe-predictor          /index.html             200
+/testing-notes          /index.html             200
+/testing-notes/*        /index.html             200
+
+# Catch-all for React Router (SPA)
+/*                      /index.html             200
