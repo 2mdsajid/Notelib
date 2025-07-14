@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
-
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase'; // Assuming your firebase config is exported from here
 
 // --- Component Props ---
 interface LeaderboardProps {
@@ -16,9 +15,16 @@ interface LeaderboardEntry {
   score: number;
 }
 
+// --- Data Structure for raw data from Firestore ---
+interface FirestoreLeaderboardData {
+    userId: string;
+    name: string;
+    score: number;
+    // It might also include 'completedAt', but we don't need it for display
+}
+
+
 const QuizLeaderBoardTable: React.FC<LeaderboardProps> = ({ quizId }) => {
-
-
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -32,98 +38,85 @@ const QuizLeaderBoardTable: React.FC<LeaderboardProps> = ({ quizId }) => {
       return;
     }
 
-    const fetchAndFormatScores = async () => {
+    const fetchLeaderboard = async () => {
       setLoading(true);
       setError('');
       try {
+        // 1. Create a reference to the specific quiz document.
+        const quizDocRef = doc(db, "quizzes", quizId);
 
-        // UNCOMMENT THIS AFTER FIXING THE SCORE SAVING IN FIREBASE.
-        // const resultsQuery = query(
-        //   collection(db, "quizResults"),
-        //   where("quizId", "==", quizId)
-        // );
-        // const querySnapshot = await getDocs(resultsQuery);
+        // 2. Fetch the document.
+        const docSnap = await getDoc(quizDocRef);
 
-        // MOCK DATA for demonstration -- Comment this after actual firbase call
-        const mockSnapshot = {
-          empty: false,
-          docs: [
-            { data: () => ({ userId: 'user123', userName: 'Alice', quizDetails: { title: 'Algebra Basics' }, userAttempt: { score: 18 } }) },
-            { data: () => ({ userId: 'user456', userName: 'Bob', quizDetails: { title: 'Algebra Basics' }, userAttempt: { score: 20 } }) },
-            { data: () => ({ userId: 'user999', userName: 'Diana', quizDetails: { title: 'Algebra Basics' }, userAttempt: { score: 20 } }) },
-            { data: () => ({ userId: 'user789', userName: 'Charlie', quizDetails: { title: 'Algebra Basics' }, userAttempt: { score: 15 } }) },
-          ]
-        };
-        const querySnapshot = await Promise.resolve(mockSnapshot); // Simulating async call
-
-
-        if (querySnapshot.empty) {
-          console.log('No results found for this quiz.');
+        if (!docSnap.exists()) {
+          console.log('No such quiz document!');
+          setError("Could not find the specified quiz.");
           setLeaderboard([]);
           return;
         }
 
-        // Set quiz title from the first result
-        const firstDocData = querySnapshot.docs[0].data();
-        if (firstDocData.quizDetails && firstDocData.quizDetails.title) {
-          setQuizTitle(firstDocData.quizDetails.title);
+        const quizData = docSnap.data();
+        setQuizTitle(quizData.title || 'Quiz'); // Set quiz title
+
+        // 3. Get the leaderboard array from the document data.
+        // Provides a fallback to an empty array if the field doesn't exist.
+        const results: FirestoreLeaderboardData[] = quizData.leaderboard || [];
+
+        if (results.length === 0) {
+            console.log('Leaderboard is empty for this quiz.');
+            setLeaderboard([]);
+            return;
         }
 
-        // 1. Map documents to a clean data structure
-        const results = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            userId: data.userId,
-            name: data.userName || 'Anonymous', // Fallback for safety
-            score: data.userAttempt.score,
-          };
-        });
-
-        // 2. Sort this array by score in descending order.
+        // 4. Sort the array by score in descending order.
+        // For ties, we can add a secondary sort, e.g., by name.
         results.sort((a, b) => {
           if (b.score !== a.score) {
-            return b.score - a.score;
+            return b.score - a.score; // Higher score first
           }
-          return a.name.localeCompare(b.name); // Optional: sort by name for ties
+          return a.name.localeCompare(b.name); // Alphabetical for ties
         });
 
-        // 3. Add rank after sorting
-        // THE FIX IS HERE: `resulr` has been corrected to `result`.
+        // 5. Add rank after sorting and map to the final display structure.
         const rankedResults: LeaderboardEntry[] = results.map((result, index) => ({
-          ...result,
-          rank: index + 1,
+          userId: result.userId,
+          name: result.name,
+          score: result.score,
+          rank: index + 1, // Rank is the index + 1
         }));
 
-        // 4. Set the final state
+        console.log(rankedResults)
+
+        // 6. Set the final state for rendering.
         setLeaderboard(rankedResults);
 
       } catch (err) {
-        console.error("Error fetching quiz scores:", err);
-        setError("Failed to fetch scores. Please try again later.");
+        console.error("Error fetching quiz leaderboard:", err);
+        setError("Failed to fetch the leaderboard. Please try again later.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAndFormatScores();
+    fetchLeaderboard();
 
-  }, [quizId]);
+  }, [quizId]); // Re-run effect if quizId changes
 
 
   if (loading) {
     return (
       <div className="flex justify-center items-center p-10">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
   if (error) {
-    return <div className="text-center text-red-600 p-4">{error}</div>;
+    return <div className="text-center text-red-600 p-4 bg-red-50 rounded-lg">{error}</div>;
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
       <h2 className="text-2xl font-bold text-gray-800 text-center mb-1">Leaderboard</h2>
       {quizTitle && <p className="text-md text-gray-500 text-center mb-6">{quizTitle}</p>}
 
@@ -147,9 +140,10 @@ const QuizLeaderBoardTable: React.FC<LeaderboardProps> = ({ quizId }) => {
               {leaderboard.map((entry) => (
                 <tr key={entry.userId}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`flex items-center justify-center w-8 h-8 text-sm font-bold rounded-full ${entry.rank === 1 ? 'bg-yellow-400 text-white' :
+                    <span className={`flex items-center justify-center w-8 h-8 text-sm font-bold rounded-full ${
+                        entry.rank === 1 ? 'bg-yellow-400 text-white' :
                         entry.rank === 2 ? 'bg-gray-300 text-gray-800' :
-                          entry.rank === 3 ? 'bg-yellow-600 text-white' : 'bg-gray-100 text-gray-700'
+                        entry.rank === 3 ? 'bg-amber-600 text-white' : 'bg-gray-100 text-gray-700'
                       }`}>
                       {entry.rank}
                     </span>
