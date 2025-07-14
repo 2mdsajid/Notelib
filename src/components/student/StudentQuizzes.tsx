@@ -286,10 +286,10 @@ const StudentQuizzes: React.FC = () => {
               timeLimit: typeof data.details.timeLimit === 'number' ? data.details.timeLimit : 0, // Sourced from data.details
               questions: Array.isArray(data.questions) ? data.questions.map((q: any, index: number): QuizQuestion => { // Added return type QuizQuestion
                 const options: QuizOption[] = [];
-                if (q.option1) options.push({ id: `${q.id}-opt-1`, text: q.option1, isCorrect: q.correctOption === 'option1' });
-                if (q.option2) options.push({ id: `${q.id}-opt-2`, text: q.option2, isCorrect: q.correctOption === 'option2' });
-                if (q.option3) options.push({ id: `${q.id}-opt-3`, text: q.option3, isCorrect: q.correctOption === 'option3' });
-                if (q.option4) options.push({ id: `${q.id}-opt-4`, text: q.option4, isCorrect: q.correctOption === 'option4' });
+                if (q.option1) options.push({ id: `${q.id}-opt-1`, text: q.option1, isCorrect: q.correctOption === q.option1 });
+                if (q.option2) options.push({ id: `${q.id}-opt-2`, text: q.option2, isCorrect: q.correctOption === q.option2 });
+                if (q.option3) options.push({ id: `${q.id}-opt-3`, text: q.option3, isCorrect: q.correctOption === q.option3});
+                if (q.option4) options.push({ id: `${q.id}-opt-4`, text: q.option4, isCorrect: q.correctOption === q.option4 });
                 // Add more options if q.option5, q.option6 etc. can exist
 
                 const imageLinkFromDB = q.imageLink;
