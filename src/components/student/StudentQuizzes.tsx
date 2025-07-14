@@ -389,7 +389,12 @@ const StudentQuizzes: React.FC = () => {
                     ? '' // If image exists, questionText is empty
                     : (questionTextFromDB || `Question ${index + 1} text missing`),
                 options: options,
-                imageLink: processedImageLink,
+                correctOption: q.correctOption, // Pass correctOption from Firestore
+                option1: q.option1,
+                option2: q.option2,
+                option3: q.option3,
+                option4: q.option4,
+              imageLink: processedImageLink,
                 marks: parseInt(q.marks, 10) || 1,
               };
             }) : [],

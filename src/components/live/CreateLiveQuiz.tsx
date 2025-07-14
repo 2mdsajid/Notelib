@@ -80,7 +80,7 @@ const CreateLiveQuiz: React.FC<CreateLiveQuizProps> = ({ editQuiz, onEditDone })
                   option2: item.option2,
                   option3: item.option3,
                   option4: item.option4,
-                  correctOption: `option${item.correctOption}`, // Convert "1" to "option1"
+                  correctOption: `${item.correctOption}`, // "1"|"2"|"3"|"4"
                   marks: item.marks,
                   // Always include imageLink - use the value from JSON or default to "null"
                   imageLink: item.imageLink !== undefined ? item.imageLink : "null",
