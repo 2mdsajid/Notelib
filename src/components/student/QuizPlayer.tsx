@@ -651,6 +651,7 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ quiz, onQuizComplete, onExit })
     const firestoreData = {
       userId: currentUser.uid,
       quizId: quiz.id,
+      userName: currentUser.displayName,
       completedAt: Timestamp.fromDate(endTime),
       quizDetails: {
         id: quiz.id,
@@ -683,7 +684,12 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ quiz, onQuizComplete, onExit })
       },
     };
 
+    console.log('user name of attendant',firestoreData.userName)
+
     try {
+      // FIX THIS IN FIREBASE SO EVERY USER CAN SAVE THEIR SCORE 
+      // AT least quizId, userid, username, total score 
+      console.log('saving the quiz result to firebase store')
       const quizResultRef = doc(collection(db, "quizResults"));
       await setDoc(quizResultRef, firestoreData);
       console.log("Quiz result saved to Firestore with ID:", quizResultRef.id);
