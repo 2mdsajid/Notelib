@@ -1,9 +1,10 @@
-import React from 'react';
-import { CheckCircle, XCircle, Clock, Award, Home, Download } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle, XCircle, Clock, Award, Home, Download, ListOrdered, BarChart2 } from 'lucide-react';
 import { QuizResult } from './QuizPlayer';
 import jsPDF from 'jspdf';
 import 'katex/dist/katex.min.css'; // Import KaTeX CSS
 import { InlineMath, BlockMath } from 'react-katex';
+import QuizLeaderBoardTable from './QuizLeaderBoardTable';
 
 interface QuizResultProps {
   result: QuizResult;
@@ -388,11 +389,22 @@ const LatexRenderer: React.FC<{ children: string }> = ({ children }) => {
   }
 };
 
-const QuizResultComponent: React.FC<QuizResultProps> = ({ 
-  result, 
-  onBackToQuizzes 
+
+interface ScoreObject {
+  userId: string
+  rank: number
+  name: string
+  score: number
+}
+
+const QuizResultComponent: React.FC<QuizResultProps> = ({
+  result,
+  onBackToQuizzes
 }) => {
   const { quiz, userAnswers, score, totalQuestions, percentage, timeSpent, completedAt } = result;
+
+  const [activeTab, setActiveTab] = useState<'analysis' | 'leaderboard'>('analysis');
+
   // Format numbers to avoid floating point display issues
   const formatScore = (num: number) => {
     return Number(num.toFixed(2));
@@ -538,18 +550,19 @@ const QuizResultComponent: React.FC<QuizResultProps> = ({
   };
 
   // Console log the complete result
-  console.log('Quiz Result Display:', {
-    quizTitle: quiz.title,
-    score: `${score}/${totalQuestions}`,
-    percentage: `${percentage}%`,
-    timeSpent: formatTime(timeSpent),
-    completedAt: completedAt.toLocaleString(),
-    userAnswers: userAnswers.map(answer => ({
-      questionId: answer.questionId,
-      selectedOptionId: answer.selectedOptionId,
-      isCorrect: answer.isCorrect
-    }))
-  });
+  // console.log('Quiz Result Display:', {
+  //   quizTitle: quiz.title,
+  //   score: `${score}/${totalQuestions}`,
+  //   percentage: `${percentage}%`,
+  //   timeSpent: formatTime(timeSpent),
+  //   completedAt: completedAt.toLocaleString(),
+  //   userAnswers: userAnswers.map(answer => ({
+  //     questionId: answer.questionId,
+  //     selectedOptionId: answer.selectedOptionId,
+  //     isCorrect: answer.isCorrect
+  //   }))
+  // });
+
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -576,202 +589,236 @@ const QuizResultComponent: React.FC<QuizResultProps> = ({
           <p className="text-gray-600">{quiz.title}</p>
         </div>
 
-        {/* Score Summary */}
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">            <div className="bg-blue-50 rounded-lg p-4">
-              <div className="text-3xl font-bold text-blue-600 mb-1">{formatScore(score)}</div>
-              <div className="text-sm text-gray-600">Correct Answers</div>
-              <div className="text-xs text-gray-500">out of {totalQuestions}</div>
-            </div>
-            
-            <div className="bg-green-50 rounded-lg p-4">
-              <div className="text-3xl font-bold text-green-600 mb-1">{formatPercentage(percentage)}%</div>
-              <div className="text-sm text-gray-600">Score</div>
-              <div className="text-xs text-gray-500">Percentage</div>
-            </div>
-            
-            <div className="bg-purple-50 rounded-lg p-4">
-              <div className="text-3xl font-bold text-purple-600 mb-1">{formatTime(timeSpent)}</div>
-              <div className="text-sm text-gray-600">Time Spent</div>
-              <div className="text-xs text-gray-500">Duration</div>
-            </div>
-            
-            <div className="bg-orange-50 rounded-lg p-4">
-              <div className="text-2xl font-bold text-orange-600 mb-1">{quiz.grade}</div>
-              <div className="text-sm text-gray-600">Grade Level</div>
-              {quiz.subject && <div className="text-xs text-gray-500">{quiz.subject}</div>}
-            </div>
-          </div>
-
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-center text-gray-700">{getPerformanceMessage(percentage)}</p>
+        {/* Tab Navigation */}
+        <div className="mb-8 border-b border-gray-200">
+          <div className="flex justify-center -mb-px">
+            <button
+              onClick={() => setActiveTab('analysis')}
+              className={`flex items-center gap-2 py-4 px-6 text-center font-medium border-b-2 transition-colors ${activeTab === 'analysis' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            >
+              <BarChart2 size={18} />
+              Analysis
+            </button>
+            <button
+              onClick={() => setActiveTab('leaderboard')}
+              className={`flex items-center gap-2 py-4 px-6 text-center font-medium border-b-2 transition-colors ${activeTab === 'leaderboard' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            >
+              <ListOrdered size={18} />
+              Leaderboard
+            </button>
           </div>
         </div>
 
-        {/* Quiz Info */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Quiz Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div className="flex justify-between py-2 border-b border-gray-100">
-              <span className="text-gray-600">Quiz Title:</span>
-              <span className="font-medium"><LatexRenderer>{quiz.title}</LatexRenderer></span>
-              <span className="font-medium">{quiz.title}</span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-gray-100">
-              <span className="text-gray-600">Completed At:</span>
-              <span className="font-medium">{completedAt.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-gray-100">
-              <span className="text-gray-600">Time Limit:</span>
-              <span className="font-medium">{quiz.timeLimit} minutes</span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-gray-100">
-              <span className="text-gray-600">Questions Answered:</span>
-              <span className="font-medium">{userAnswers.filter(ua => ua.selectedOptionId !== null).length} of {totalQuestions}</span>
-            </div>
+        {activeTab === 'leaderboard' && (
+          <div id="leaderboard-content">
+            <QuizLeaderBoardTable quizId={quiz.id} />
           </div>
-        </div>
+        )}
 
-        {/* Detailed Results */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">Question Review</h2>
-          
-          <div className="space-y-6">            {quiz.questions.map((question, index) => {
+        {activeTab === 'analysis' && (
+          <div id="analysis-content">
 
-              const userAnswer = userAnswers.find(answer => answer.questionId === question.id);
-              const selectedOption = question.options.find(opt => opt.id === userAnswer?.selectedOptionId);
-              // Use question.correctOption (string or number) to find the correct option
-              const correctOption = question.options.find(opt => opt.id === question.correctOption || opt.value === question.correctOption || opt.optionNo === question.correctOption);
-              const isCorrect = userAnswer?.isCorrect || false;
-              const wasAnswered = !!userAnswer;
+            {/* Score Summary */}
+            <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">            <div className="bg-blue-50 rounded-lg p-4">
+                <div className="text-3xl font-bold text-blue-600 mb-1">{formatScore(score)}</div>
+                <div className="text-sm text-gray-600">Correct Answers</div>
+                <div className="text-xs text-gray-500">out of {totalQuestions}</div>
+              </div>
 
-              // Debug: log the correctOption id/value and all options
-              console.log('Question', index + 1, 'question.correctOption:', question.correctOption, 'options:', question.options);
+                <div className="bg-green-50 rounded-lg p-4">
+                  <div className="text-3xl font-bold text-green-600 mb-1">{formatPercentage(percentage)}%</div>
+                  <div className="text-sm text-gray-600">Score</div>
+                  <div className="text-xs text-gray-500">Percentage</div>
+                </div>
 
-              return (
-                <div key={question.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3 mb-4">
-                    {wasAnswered ? (
-                      isCorrect ? (
-                        <CheckCircle className="text-green-500 mt-1 flex-shrink-0" size={20} />
+                <div className="bg-purple-50 rounded-lg p-4">
+                  <div className="text-3xl font-bold text-purple-600 mb-1">{formatTime(timeSpent)}</div>
+                  <div className="text-sm text-gray-600">Time Spent</div>
+                  <div className="text-xs text-gray-500">Duration</div>
+                </div>
+
+                <div className="bg-orange-50 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-orange-600 mb-1">{quiz.grade}</div>
+                  <div className="text-sm text-gray-600">Grade Level</div>
+                  {quiz.subject && <div className="text-xs text-gray-500">{quiz.subject}</div>}
+                </div>
+              </div>
+
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <p className="text-center text-gray-700">{getPerformanceMessage(percentage)}</p>
+              </div>
+            </div>
+
+            {/* Quiz Info */}
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Quiz Information</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">Quiz Title:</span>
+                  <span className="font-medium"><LatexRenderer>{quiz.title}</LatexRenderer></span>
+                  <span className="font-medium">{quiz.title}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">Completed At:</span>
+                  <span className="font-medium">{completedAt.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">Time Limit:</span>
+                  <span className="font-medium">{quiz.timeLimit} minutes</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">Questions Answered:</span>
+                  <span className="font-medium">{userAnswers.filter(ua => ua.selectedOptionId !== null).length} of {totalQuestions}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Results */}
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+              <h2 className="text-2xl font-semibold text-gray-800 mb-6">Question Review</h2>
+
+              <div className="space-y-6">            {quiz.questions.map((question, index) => {
+
+                const userAnswer = userAnswers.find(answer => answer.questionId === question.id);
+                const selectedOption = question.options.find(opt => opt.id === userAnswer?.selectedOptionId);
+                // Use question.correctOption (string or number) to find the correct option
+                // const correctOption = question.options.find(opt => opt.id === question.correctOption || opt.value === question.correctOption || opt.optionNo === question.correctOption);
+                const isCorrect = userAnswer?.isCorrect || false;
+                const wasAnswered = !!userAnswer;
+
+                // Debug: log the correctOption id/value and all options
+                // console.log('Question', index + 1, 'question.correctOption:', question.correctOption, 'options:', question.options);
+
+                return (
+                  <div key={question.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3 mb-4">
+                      {wasAnswered ? (
+                        isCorrect ? (
+                          <CheckCircle className="text-green-500 mt-1 flex-shrink-0" size={20} />
+                        ) : (
+                          <XCircle className="text-red-500 mt-1 flex-shrink-0" size={20} />
+                        )
                       ) : (
-                        <XCircle className="text-red-500 mt-1 flex-shrink-0" size={20} />
-                      )
-                    ) : (
-                      <div className="w-5 h-5 border-2 border-gray-300 rounded-full mt-1 flex-shrink-0"></div>
-                    )}
+                        <div className="w-5 h-5 border-2 border-gray-300 rounded-full mt-1 flex-shrink-0"></div>
+                      )}
                       <div className="flex-1">
-                      <div className="text-sm text-gray-500 mb-1">Question {index + 1}</div>
-                      
-                      {/* Question Image */}
-                      {question.imageLink && (
-                        <div className="mb-3">
-                          <img 
-                            src={question.imageLink} 
-                            alt={`Question ${index + 1} image`} 
-                            className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                              console.warn(`Failed to load image: ${question.imageLink}`);
-                            }}
-                          />
-                        </div>
-                      )}
-                      
-                      {/* Question Text */}
-                      {question.questionText && (
-                        <h3 className="font-semibold text-gray-800 mb-3">
-                          <LatexRenderer>{question.questionText}</LatexRenderer>
-                        </h3>
-                      )}
-                      
-                      {/* Show note if question has only image */}
-                      {question.imageLink && !question.questionText && (
-                        <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
-                          <Clock size={14} className="inline mr-1" />
-                          Image-based question
-                        </div>
-                      )}
-                      
-                      <div className="space-y-2">
-                        {(() => {
-                          // Get the correct answer text from question.option{correctOption}
-                          const correctOptionKey = `option${question.correctOption}`;
-                          const correctOptionText = question[correctOptionKey];
-                          return question.options.map((option) => {
-                            let optionClass = 'p-3 rounded-lg border ';
-                            let rightLabel = null;
-                            let leftIcon = null;
-                            // Highlight as correct if option.text matches correctOptionText
-                            const isCorrectOption = option.text === correctOptionText;
-                            if (isCorrectOption) {
-                              optionClass += 'border-green-500 bg-green-50 text-green-700';
-                              leftIcon = <CheckCircle size={16} className="text-green-600" />;
-                              rightLabel = (
-                                <span className="ml-auto text-xs font-semibold bg-green-200 text-green-800 px-2 py-1 rounded">
-                                  Correct Answer
-                                </span>
-                              );
-                            }
-                            // If user selected this option and it is not correct, show as 'Your Answer'
-                            if (selectedOption?.id === option.id && !isCorrectOption) {
-                              optionClass += 'border-red-500 bg-red-50 text-red-700';
-                              leftIcon = <XCircle size={16} className="text-red-600" />;
-                              rightLabel = (
-                                <span className="ml-auto text-xs font-semibold bg-red-200 text-red-800 px-2 py-1 rounded">
-                                  Your Answer
-                                </span>
-                              );
-                            }
-                            // Default style for other options
-                            if (!isCorrectOption && selectedOption?.id !== option.id) {
-                              optionClass += 'border-gray-200 bg-gray-50 text-gray-700';
-                            }
-                            return (
-                              <div key={option.id} className={optionClass}>
-                                <div className="flex items-center gap-2">
-                                  {leftIcon}
-                                  <span><LatexRenderer>{option.text}</LatexRenderer></span>
-                                  {rightLabel}
-                                </div>
-                              </div>
-                            );
-                          });
-                        })()}
-                      </div>
+                        <div className="text-sm text-gray-500 mb-1">Question {index + 1}</div>
 
-                      {!wasAnswered && (
-                        <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                          <div className="flex items-center gap-2 text-yellow-700">
-                            <Clock size={16} />
-                            <span className="text-sm font-medium">Not Answered</span>
+                        {/* Question Image */}
+                        {question.imageLink && (
+                          <div className="mb-3">
+                            <img
+                              src={question.imageLink}
+                              alt={`Question ${index + 1} image`}
+                              className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                console.warn(`Failed to load image: ${question.imageLink}`);
+                              }}
+                            />
                           </div>
+                        )}
+
+                        {/* Question Text */}
+                        {question.questionText && (
+                          <h3 className="font-semibold text-gray-800 mb-3">
+                            <LatexRenderer>{question.questionText}</LatexRenderer>
+                          </h3>
+                        )}
+
+                        {/* Show note if question has only image */}
+                        {question.imageLink && !question.questionText && (
+                          <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+                            <Clock size={14} className="inline mr-1" />
+                            Image-based question
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          {(() => {
+                            // Get the correct answer text from question.option{correctOption}
+                            const correctOptionKey = `option${question.correctOption}`;
+                            const correctOptionText = question[correctOptionKey];
+                            return question.options.map((option) => {
+                              let optionClass = 'p-3 rounded-lg border ';
+                              let rightLabel = null;
+                              let leftIcon = null;
+                              // Highlight as correct if option.text matches correctOptionText
+                              const isCorrectOption = option.text === correctOptionText;
+                              if (isCorrectOption) {
+                                optionClass += 'border-green-500 bg-green-50 text-green-700';
+                                leftIcon = <CheckCircle size={16} className="text-green-600" />;
+                                rightLabel = (
+                                  <span className="ml-auto text-xs font-semibold bg-green-200 text-green-800 px-2 py-1 rounded">
+                                    Correct Answer
+                                  </span>
+                                );
+                              }
+                              // If user selected this option and it is not correct, show as 'Your Answer'
+                              if (selectedOption?.id === option.id && !isCorrectOption) {
+                                optionClass += 'border-red-500 bg-red-50 text-red-700';
+                                leftIcon = <XCircle size={16} className="text-red-600" />;
+                                rightLabel = (
+                                  <span className="ml-auto text-xs font-semibold bg-red-200 text-red-800 px-2 py-1 rounded">
+                                    Your Answer
+                                  </span>
+                                );
+                              }
+                              // Default style for other options
+                              if (!isCorrectOption && selectedOption?.id !== option.id) {
+                                optionClass += 'border-gray-200 bg-gray-50 text-gray-700';
+                              }
+                              return (
+                                <div key={option.id} className={optionClass}>
+                                  <div className="flex items-center gap-2">
+                                    {leftIcon}
+                                    <span><LatexRenderer>{option.text}</LatexRenderer></span>
+                                    {rightLabel}
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
                         </div>
-                      )}
+
+                        {!wasAnswered && (
+                          <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div className="flex items-center gap-2 text-yellow-700">
+                              <Clock size={16} />
+                              <span className="text-sm font-medium">Not Answered</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button
+                onClick={generatePDF}
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                <Download size={18} />
+                Download PDF Report
+              </button>
+              <button
+                onClick={onBackToQuizzes}
+                className="flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Home size={18} />
+                Back to Quizzes
+              </button>
+            </div>
           </div>
-        </div>        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button
-            onClick={generatePDF}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            <Download size={18} />
-            Download PDF Report
-          </button>
-          <button
-            onClick={onBackToQuizzes}
-            className="flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <Home size={18} />
-            Back to Quizzes
-          </button>
-        </div>
+        )}
+
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, Bookmark, ChevronLeft, ChevronRight, AlertTriangle, BookmarkPlus, HelpCircle, CheckCircle2, LogOut, PlayCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { doc, setDoc, collection, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, collection, Timestamp, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import 'katex/dist/katex.min.css'; // Import KaTeX CSS
 import { InlineMath, BlockMath } from 'react-katex';
@@ -48,6 +48,13 @@ interface UserAnswer {
   isCorrect: boolean | null;
   isBookmarked: boolean;
   marks: number; 
+}
+
+
+interface FirestoreLeaderboardData {
+  userId: string;
+  name: string;
+  score: number;
 }
 
 interface QuizPlayerProps {
@@ -651,6 +658,7 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ quiz, onQuizComplete, onExit })
     const firestoreData = {
       userId: currentUser.uid,
       quizId: quiz.id,
+      userName: currentUser.displayName,
       completedAt: Timestamp.fromDate(endTime),
       quizDetails: {
         id: quiz.id,
@@ -683,10 +691,21 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ quiz, onQuizComplete, onExit })
       },
     };
 
+
+    const leaderboardEntry: FirestoreLeaderboardData = {
+      userId: currentUser.uid,
+      name: firestoreData.userName || 'unknown',
+      score: score,
+    };
+
+    console.log(leaderboardEntry)
+
     try {
-      const quizResultRef = doc(collection(db, "quizResults"));
-      await setDoc(quizResultRef, firestoreData);
-      console.log("Quiz result saved to Firestore with ID:", quizResultRef.id);
+      // AT least quizId, userid, username, total score 
+      const quizDocRef = doc(db, 'quizzes', quiz.id);
+      await updateDoc(quizDocRef, {
+        leaderboard: arrayUnion(leaderboardEntry)
+      });
     } catch (error) {
       console.error("Error saving quiz result to Firestore:", error);
     }
