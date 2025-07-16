@@ -14,7 +14,16 @@ interface UserData {
   providerId: string;
   createdAt: any;
   lastLogin: any;
-  isNewUser?: boolean;
+  isNewUser: boolean;
+  examType: 'IOE' | 'CEE' | 'none';
+  currentStandard: '10' | '11' | '12' | 'Passout';
+  ioeAccess: boolean;
+  ceeAccess: boolean;
+  liveTestAccess: boolean;
+  college: string;
+  district: string;
+  province: string;
+  phoneNumber: string;
 }
 
 const Profile: React.FC = () => {
@@ -25,7 +34,9 @@ const Profile: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     displayName: '',
-    email: ''
+    email: '',
+    examType: 'IOE' as 'IOE' | 'CEE' | 'none',
+    currentStandard: '12' as '10' | '11' | '12' | 'Passout'
   });
 
   useEffect(() => {
@@ -49,10 +60,13 @@ const Profile: React.FC = () => {
       
       if (userDocSnap.exists()) {
         const data = userDocSnap.data() as UserData;
+        // Only set examType if it's IOE or CEE, otherwise set to null
         setUserData(data);
         setForm({
           displayName: data.displayName || '',
-          email: data.email || ''
+          email: data.email || '',
+          examType: data.examType,
+          currentStandard: data.currentStandard
         });
       }
     } catch (error) {
@@ -106,7 +120,9 @@ const Profile: React.FC = () => {
     if (userData) {
       setForm({
         displayName: userData.displayName || '',
-        email: userData.email || ''
+        email: userData.email || '',
+        examType: userData.examType || null,
+        currentClass: userData.currentClass || null
       });
     }
     setIsEditing(false);
@@ -232,6 +248,156 @@ const Profile: React.FC = () => {
                       <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
                     </div>
 
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Exam Type
+                      </label>
+                      <div className="grid grid-cols-3 gap-3">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!currentUser) return;
+                            try {
+                              setSaving(true);
+                              const userDocRef = doc(db, 'users', currentUser.uid);
+                              await updateDoc(userDocRef, {
+                                examType: 'IOE'
+                              });
+                              setForm(prev => ({ ...prev, examType: 'IOE' }));
+                              setUserData(prev => prev ? { ...prev, examType: 'IOE' } : null);
+                              toast.success('Exam type updated to IOE');
+                            } catch (error) {
+                              console.error('Error updating exam type:', error);
+                              toast.error('Failed to update exam type');
+                            } finally {
+                              setSaving(false);
+                            }
+                          }}
+                          disabled={saving}
+                          className={`p-3 rounded-lg border-2 transition-colors ${
+                            form.examType === 'IOE'
+                              ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                              : 'border-gray-300 hover:border-gray-400'
+                          } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <div className="font-semibold">IOE</div>
+                          <div className="text-sm text-gray-600">Institute of Engineering</div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!currentUser) return;
+                            try {
+                              setSaving(true);
+                              const userDocRef = doc(db, 'users', currentUser.uid);
+                              await updateDoc(userDocRef, {
+                                examType: 'CEE'
+                              });
+                              setForm(prev => ({ ...prev, examType: 'CEE' }));
+                              setUserData(prev => prev ? { ...prev, examType: 'CEE' } : null);
+                              toast.success('Exam type updated to CEE');
+                            } catch (error) {
+                              console.error('Error updating exam type:', error);
+                              toast.error('Failed to update exam type');
+                            } finally {
+                              setSaving(false);
+                            }
+                          }}
+                          disabled={saving}
+                          className={`p-3 rounded-lg border-2 transition-colors ${
+                            form.examType === 'CEE'
+                              ? 'border-green-500 bg-green-50 text-green-700'
+                              : 'border-gray-300 hover:border-gray-400'
+                          } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <div className="font-semibold">CEE</div>
+                          <div className="text-sm text-gray-600">Common Entrance Examination</div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!currentUser) return;
+                            try {
+                              setSaving(true);
+                              const userDocRef = doc(db, 'users', currentUser.uid);
+                              await updateDoc(userDocRef, {
+                                examType: 'none'
+                              });
+                              setForm(prev => ({ ...prev, examType: 'none' }));
+                              setUserData(prev => prev ? { ...prev, examType: 'none' } : null);
+                              toast.success('Exam type updated to None');
+                            } catch (error) {
+                              console.error('Error updating exam type:', error);
+                              toast.error('Failed to update exam type');
+                            } finally {
+                              setSaving(false);
+                            }
+                          }}
+                          disabled={saving}
+                          className={`p-3 rounded-lg border-2 transition-colors ${
+                            form.examType === 'none'
+                              ? 'border-gray-500 bg-gray-50 text-gray-700'
+                              : 'border-gray-300 hover:border-gray-400'
+                          } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <div className="font-semibold">None</div>
+                          <div className="text-sm text-gray-600">No Exam Type</div>
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Choose your exam type to see relevant live tests and content
+                      </p>
+                    </div>
+
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Current Standard
+                      </label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {(['11', '12', 'Passout'] as const).map((standard) => (
+                          <button
+                            key={standard}
+                            type="button"
+                            onClick={async () => {
+                              if (!currentUser) return;
+                              try {
+                                setSaving(true);
+                                const userDocRef = doc(db, 'users', currentUser.uid);
+                                await updateDoc(userDocRef, {
+                                  currentStandard: standard
+                                });
+                                setForm(prev => ({ ...prev, currentStandard: standard }));
+                                setUserData(prev => prev ? { ...prev, currentStandard: standard } : null);
+                                toast.success(`Standard updated to Class ${standard}`);
+                              } catch (error) {
+                                console.error('Error updating standard:', error);
+                                toast.error('Failed to update standard');
+                              } finally {
+                                setSaving(false);
+                              }
+                            }}
+                            disabled={saving}
+                            className={`p-3 rounded-lg border-2 transition-colors ${
+                              form.currentStandard === standard
+                                ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                : 'border-gray-300 hover:border-gray-400'
+                            } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <div className="font-semibold">Class {standard}</div>
+                            <div className="text-sm text-gray-600">
+                              {standard === '12' ? '😊' : 
+                               standard === '11' ? '😁' : 
+                               standard === 'Passout' ? '🎓' : '😎'}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Select your current standard to see relevant content
+                      </p>
+                    </div>
+
                     <div className="flex space-x-3 pt-4">
                       <button
                         onClick={handleSave}
@@ -273,6 +439,47 @@ const Profile: React.FC = () => {
                         <div>
                           <p className="text-sm font-medium text-gray-900">Email</p>
                           <p className="text-sm text-gray-600">{userData.email}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <Shield className="h-5 w-5 text-gray-400 mr-3" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Exam Type</p>
+                          <div>
+                            {userData.examType ? (
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                userData.examType === 'IOE' 
+                                  ? 'bg-indigo-100 text-indigo-800'
+                                  : 'bg-green-100 text-green-800'
+                              }`}>
+                                {userData.examType === 'IOE' ? 'Institute of Engineering' : 'CEE'}
+                              </span>
+                            ) : (
+                              <>
+                                <p className="text-sm text-gray-600">None</p>
+                                <p className="text-xs text-gray-500 mt-1">Select an exam type to access relevant content</p>
+                              </>
+                            )}
+                          </div>
+                        </div>                    </div>
+                  </div>
+
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <User className="h-5 w-5 text-gray-400 mr-3" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Current Standard</p>
+                          <div>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              Class {userData.currentStandard}
+                              {userData.currentStandard === '12' ? ' 😊' : 
+                               userData.currentStandard === '11' ? ' 😁' : 
+                               userData.currentStandard === 'Passout' ? ' 🎓' : ' 😎'}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -354,4 +561,4 @@ const Profile: React.FC = () => {
   );
 };
 
-export default Profile; 
+export default Profile;
